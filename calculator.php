@@ -43,7 +43,11 @@
 
             <div class="calculator__order">
                 <h2>Отправить заявку с этой ценой</h2>
+        <?php if (isset($_GET['form_error'])): ?>
+            <p style="color:#b00020; margin: 10px 0 20px;"><?php echo htmlspecialchars($_GET['form_error']); ?></p>
+        <?php endif; ?>
                 <form action="submit_request.php" method="post" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(csrf_token()); ?>">
                     <input type="hidden" name="estimated_price" id="order-price" value="">
                     
                     <div class="form-group">
