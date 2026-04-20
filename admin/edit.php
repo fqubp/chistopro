@@ -14,9 +14,8 @@ if (!$id) {
     exit;
 }
 
-// Получаем данные заявки
-$stmt = $conn->prepare("SELECT * FROM requests WHERE id = ?");
-$stmt->bind_param("i", $id);
+$stmt = $conn->prepare('SELECT * FROM requests WHERE id = ?');
+$stmt->bind_param('i', $id);
 $stmt->execute();
 $result = $stmt->get_result();
 $request = $result->fetch_assoc();
@@ -27,40 +26,46 @@ if (!$request) {
     exit;
 }
 
-// Обработка формы сохранения
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $name = clean_input($_POST['name'] ?? '');
-    $phone = clean_input($_POST['phone'] ?? '');
-    $service_type = clean_input($_POST['service_type'] ?? '');
-    $message = clean_input($_POST['message'] ?? '');
-    $estimated_price = clean_input($_POST['estimated_price'] ?? '');
-    $status = clean_input($_POST['status'] ?? 'new');
-    $source = clean_input($_POST['source'] ?? 'site');
-
-    // Если загружен новый файл
-    $file_path = $request['file_path']; // по умолчанию старый
-    if (isset($_FILES['new_file']) && $_FILES['new_file']['error'] === UPLOAD_ERR_OK) {
-        // Удаляем старый файл, если есть
-        if ($file_path && file_exists('../' . $file_path)) {
-            unlink('../' . $file_path);
-        }
-        // Загружаем новый
-        $upload_result = upload_file('new_file', '../uploads/');
-        if ($upload_result && isset($upload_result['success'])) {
-            $file_path = $upload_result['success'];
-        }
-    }
-
-    // Обновляем запись
-    $stmt = $conn->prepare("UPDATE requests SET name=?, phone=?, service_type=?, message=?, estimated_price=?, status=?, source=?, file_path=? WHERE id=?");
-    $stmt->bind_param("ssssssssi", $name, $phone, $service_type, $message, $estimated_price, $status, $source, $file_path, $id);
-    if ($stmt->execute()) {
-        header('Location: index.php');
-        exit;
+    if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
+        $error = 'Ошибка безопасности формы. Обновите страницу и попробуйте снова.';
     } else {
-        $error = "Ошибка обновления: " . $conn->error;
+        $name = clean_input($_POST['name'] ?? '');
+        $phone = clean_input($_POST['phone'] ?? '');
+        $service_type = clean_input($_POST['service_type'] ?? '');
+        $message = clean_input($_POST['message'] ?? '');
+        $estimated_price = clean_input($_POST['estimated_price'] ?? '');
+        $status = clean_input($_POST['status'] ?? 'new');
+        $source = clean_input($_POST['source'] ?? 'site');
+
+        $allowed_statuses = ['new', 'in_progress', 'completed'];
+        if (!in_array($status, $allowed_statuses, true)) {
+            $status = 'new';
+        }
+
+        $file_path = $request['file_path'];
+        if (isset($_FILES['new_file']) && $_FILES['new_file']['error'] === UPLOAD_ERR_OK) {
+            if ($file_path && file_exists('../' . $file_path)) {
+                unlink('../' . $file_path);
+            }
+
+            $upload_result = upload_file('new_file', '../uploads/');
+            if ($upload_result && isset($upload_result['success'])) {
+                $file_path = $upload_result['success'];
+            }
+        }
+
+        $stmt = $conn->prepare('UPDATE requests SET name=?, phone=?, service_type=?, message=?, estimated_price=?, status=?, source=?, file_path=? WHERE id=?');
+        $stmt->bind_param('ssssssssi', $name, $phone, $service_type, $message, $estimated_price, $status, $source, $file_path, $id);
+
+        if ($stmt->execute()) {
+            header('Location: index.php');
+            exit;
+        }
+
+        $error = 'Ошибка обновления: ' . $conn->error;
+        $stmt->close();
     }
-    $stmt->close();
 }
 
 $conn->close();
@@ -71,7 +76,7 @@ $conn->close();
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Редактирование заявки</title>
-    <link rel="stylesheet" href="/chisto-pro39/css/style.css">
+    <link rel="stylesheet" href="/css/style.css">
     <style>
         .edit-form {
             max-width: 600px;
@@ -98,9 +103,10 @@ $conn->close();
         <div class="edit-form">
             <h1>Редактирование заявки #<?php echo $id; ?></h1>
             <?php if (isset($error)): ?>
-                <div style="color: red; margin-bottom: 15px;"><?php echo $error; ?></div>
+                <div style="color: red; margin-bottom: 15px;"><?php echo htmlspecialchars($error); ?></div>
             <?php endif; ?>
             <form method="post" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(csrf_token()); ?>">
                 <div class="form-group">
                     <label>Имя</label>
                     <input type="text" name="name" value="<?php echo htmlspecialchars($request['name']); ?>">
@@ -124,9 +130,9 @@ $conn->close();
                 <div class="form-group">
                     <label>Статус</label>
                     <select name="status">
-                        <option value="new" <?php echo $request['status'] == 'new' ? 'selected' : ''; ?>>Новая</option>
-                        <option value="in_progress" <?php echo $request['status'] == 'in_progress' ? 'selected' : ''; ?>>В работе</option>
-                        <option value="completed" <?php echo $request['status'] == 'completed' ? 'selected' : ''; ?>>Выполнена</option>
+                        <option value="new" <?php echo $request['status'] === 'new' ? 'selected' : ''; ?>>Новая</option>
+                        <option value="in_progress" <?php echo $request['status'] === 'in_progress' ? 'selected' : ''; ?>>В работе</option>
+                        <option value="completed" <?php echo $request['status'] === 'completed' ? 'selected' : ''; ?>>Выполнена</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -137,7 +143,7 @@ $conn->close();
                     <label>Текущий файл:</label>
                     <?php if ($request['file_path']): ?>
                         <div class="current-file">
-                            <a href="/chisto-pro39/<?php echo $request['file_path']; ?>" target="_blank">Посмотреть</a>
+                            <a href="/<?php echo htmlspecialchars($request['file_path']); ?>" target="_blank">Посмотреть</a>
                         </div>
                     <?php else: ?>
                         <p>Нет файла</p>
