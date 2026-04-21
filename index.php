@@ -16,19 +16,19 @@
                 <div class="service-card__image">[Фото: уборка квартиры]</div>
                 <h3>Уборка квартир</h3>
                 <p>от 90 руб/м²</p>
-                <a href="/chisto-pro39/private/apartment.php" class="btn">Подробнее</a>
+                <a href="/private/apartment.php" class="btn">Подробнее</a>
             </div>
             <div class="service-card">
                 <div class="service-card__image">[Фото: химчистка]</div>
                 <h3>Химчистка мебели</h3>
                 <p>от 4500 руб</p>
-                <a href="/chisto-pro39/private/cleaning.php" class="btn">Подробнее</a>
+                <a href="/private/cleaning.php" class="btn">Подробнее</a>
             </div>
             <div class="service-card">
                 <div class="service-card__image">[Фото: мойка окон]</div>
                 <h3>Мойка окон</h3>
                 <p>от 500 руб</p>
-                <a href="/chisto-pro39/private/windows.php" class="btn">Подробнее</a>
+                <a href="/private/windows.php" class="btn">Подробнее</a>
             </div>
         </div>
     </div>
@@ -60,7 +60,11 @@
 <section class="callback" id="callback">
     <div class="container">
         <h2>Оставить заявку</h2>
+        <?php if (isset($_GET['form_error'])): ?>
+            <p style="color:#b00020; margin: 10px 0 20px;"><?php echo htmlspecialchars($_GET['form_error']); ?></p>
+        <?php endif; ?>
         <form action="submit_request.php" method="post" enctype="multipart/form-data" class="callback-form">
+            <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(csrf_token()); ?>">
             <div class="form-group">
                 <label for="name">Ваше имя</label>
                 <input type="text" id="name" name="name" placeholder="Имя">
@@ -92,7 +96,7 @@
             
             <div class="form-group checkbox">
                 <input type="checkbox" id="agree" name="agree" required>
-                <label for="agree">Я согласен на обработку персональных данных в соответствии с <a href="/chisto-pro39/privacy.php" target="_blank">Политикой конфиденциальности</a></label>
+                <label for="agree">Я согласен на обработку персональных данных в соответствии с <a href="/privacy.php" target="_blank">Политикой конфиденциальности</a></label>
             </div>
             
             <button type="submit" class="btn">Отправить заявку</button>

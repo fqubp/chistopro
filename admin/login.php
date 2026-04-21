@@ -1,20 +1,50 @@
 <?php
 session_start();
-// Если уже авторизован, перенаправляем в админку
+require_once __DIR__ . '/../includes/config.php';
+require_once __DIR__ . '/../includes/functions.php';
+
 if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true) {
     header('Location: index.php');
     exit;
 }
 
 $error = '';
+$_SESSION['login_attempts'] = $_SESSION['login_attempts'] ?? 0;
+$_SESSION['login_locked_until'] = $_SESSION['login_locked_until'] ?? 0;
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $password = $_POST['password'] ?? '';
-    // Пароль, который ты указал
-    if ($password === 'LiTNa3I%') {
-        $_SESSION['admin_logged_in'] = true;
-        header('Location: index.php');
-        exit;
+    if (!verify_csrf_token($_POST['csrf_token'] ?? '')) {
+        $error = 'Сессия устарела. Обновите страницу.';
+    } elseif (time() < (int) $_SESSION['login_locked_until']) {
+        $error = 'Слишком много попыток входа. Попробуйте через 10 минут.';
     } else {
+        $password = $_POST['password'] ?? '';
+
+        $passwordHash = env('ADMIN_PASSWORD_HASH', '');
+        $plainPassword = env('ADMIN_PASSWORD', '');
+
+        $isValid = false;
+        if ($passwordHash !== '') {
+            $isValid = password_verify($password, $passwordHash);
+        } elseif ($plainPassword !== '' && app_env() !== 'production') {
+            $isValid = hash_equals($plainPassword, $password);
+        }
+
+        if ($isValid) {
+            session_regenerate_id(true);
+            $_SESSION['admin_logged_in'] = true;
+            $_SESSION['admin_login_at'] = time();
+            $_SESSION['login_attempts'] = 0;
+            $_SESSION['login_locked_until'] = 0;
+            header('Location: index.php');
+            exit;
+        }
+
+        $_SESSION['login_attempts']++;
+        if ($_SESSION['login_attempts'] >= 5) {
+            $_SESSION['login_locked_until'] = time() + 600;
+            $_SESSION['login_attempts'] = 0;
+        }
         $error = 'Неверный пароль';
     }
 }
@@ -25,7 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Вход в админ-панель</title>
-    <link rel="stylesheet" href="/chisto-pro39/css/style.css">
+    <link rel="stylesheet" href="/css/style.css">
     <style>
         .login-form {
             max-width: 400px;
@@ -51,9 +81,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="login-form">
             <h1>Вход в админ-панель</h1>
             <?php if ($error): ?>
-                <div class="error"><?php echo $error; ?></div>
+                <div class="error"><?php echo htmlspecialchars($error); ?></div>
             <?php endif; ?>
             <form method="post">
+                <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars(csrf_token()); ?>">
                 <div class="form-group">
                     <label for="password">Пароль</label>
                     <input type="password" id="password" name="password" required>
