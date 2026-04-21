@@ -36,6 +36,10 @@ function is_valid_phone($phone) {
 }
 
 function upload_file($file_input_name, $upload_dir = '../uploads/') {
+    if (isset($_FILES[$file_input_name]) && $_FILES[$file_input_name]['error'] === UPLOAD_ERR_OK && is_vercel()) {
+        return ['error' => 'Загрузка файлов временно недоступна в текущем окружении.'];
+    }
+
     if (isset($_FILES[$file_input_name]) && $_FILES[$file_input_name]['error'] === UPLOAD_ERR_OK) {
         $file_tmp = $_FILES[$file_input_name]['tmp_name'];
         $file_name = basename($_FILES[$file_input_name]['name']);

@@ -55,3 +55,4 @@ if (!function_exists('app_debug')) {
         return app_env() !== 'production';
     }
 }
+
