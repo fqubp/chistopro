@@ -56,8 +56,3 @@ if (!function_exists('app_debug')) {
     }
 }
 
-if (!function_exists('is_vercel')) {
-    function is_vercel() {
-        return env('VERCEL', '') === '1' || env('VERCEL_ENV', '') !== '';
-    }
-}
